@@ -1,0 +1,149 @@
+extends SceneTree
+
+## 无头冒烟测试 v3：图片场景 + 热点判定。
+## 运行：godot --headless --path . -s tests/smoke_test.gd
+
+var failures: Array[String] = []
+
+func check(cond: bool, msg: String) -> void:
+	if cond:
+		print("  ok: ", msg)
+	else:
+		failures.append(msg)
+		printerr("  FAIL: ", msg)
+
+func _init() -> void:
+	call_deferred("run")
+
+func empty_point(game) -> Vector2:
+	for gx in range(70, 1560, 55):
+		for gy in range(70, 1020, 55):
+			var p := Vector2(gx, gy)
+			var ok := true
+			for t in game.targets:
+				if p.distance_to(t["pos"]) < float(t["r"]) + 55.0:
+					ok = false
+					break
+			if ok:
+				for r in game.reactives:
+					if p.distance_to(r["pos"]) < float(r["r"]) + 55.0:
+						ok = false
+						break
+			if ok:
+				return p
+	return Vector2(5, 5)
+
+func run() -> void:
+	print("== smoke test v3 start ==")
+	var state = root.get_node_or_null("GameState")
+	check(state != null, "GameState autoload exists")
+	check(state.has_method("play_sfx"), "audio: play_sfx exists")
+	for n in ["bgm", "click", "pop", "found", "error", "hint", "win"]:
+		check(ResourceLoader.exists("res://audio/%s.wav" % n), "audio file exists: %s" % n)
+	state.play_sfx("click")
+
+	var main_ps = load("res://scenes/Main.tscn")
+	check(main_ps != null, "Main.tscn loads")
+	var main_node = main_ps.instantiate()
+	root.add_child(main_node)
+	await process_frame
+	await process_frame
+	main_node.queue_free()
+	await process_frame
+
+	var game_ps = load("res://scenes/Game.tscn")
+	check(game_ps != null, "Game.tscn loads")
+	var level_count: int = Levels.DATA.size()
+	for lv in range(level_count):
+		state.selected_level = lv
+		var game = game_ps.instantiate()
+		root.add_child(game)
+		await process_frame
+		await process_frame
+		check(game.dialogue_active, "level %d starts with dialogue" % lv)
+		check(not game.playing, "level %d timer paused during dialogue" % lv)
+		game.finish_dialogue()
+		check(game.playing, "level %d playing after dialogue" % lv)
+		# 悬停：目标与彩蛋都有动画，不收集、不计失误；已找到的目标不再悬停
+		game._update_hover(game.targets[0]["pos"])
+		check(not game.hovered.is_empty() and game.hovered["is_target"], "level %d hover target sets hovered" % lv)
+		check(game.targets[0]["patch"].visible, "level %d hover target shows patch" % lv)
+		check(game.found_count == 0 and game.mistakes == 0, "level %d hover: no collect, no mistake" % lv)
+		check(game._hover_ring != null, "level %d hover shows ring" % lv)
+		game._update_hover(empty_point(game))
+		check(game.hovered.is_empty(), "level %d hover empty clears hovered" % lv)
+		game._update_hover(game.reactives[0]["pos"])
+		check(not game.hovered.is_empty() and not game.hovered["is_target"], "level %d hover reactive sets hovered" % lv)
+		game._clear_hover()
+		check(game.hovered.is_empty(), "level %d clear hover empties hovered" % lv)
+		check(game.targets.size() == (game.level["targets"] as Array).size(), "level %d target count matches data" % lv)
+		check(game.targets_left == game.targets.size(), "level %d targets_left initialized" % lv)
+		# 热点互不重叠（圆心距 > 两半径之和的 0.8，避免判定歧义）
+		var overlap := false
+		for a in game.targets.size():
+			for b in range(a + 1, game.targets.size()):
+				var ta: Dictionary = game.targets[a]
+				var tb: Dictionary = game.targets[b]
+				if ta["pos"].distance_to(tb["pos"]) < (float(ta["r"]) + float(tb["r"])) * 0.8:
+					overlap = true
+		check(not overlap, "level %d hotspots do not overlap" % lv)
+		# 热点都在世界范围内
+		var inside := true
+		for t in game.targets:
+			var p: Vector2 = t["pos"]
+			if p.x < 0 or p.y < 0 or p.x > 1600 or p.y > 1067:
+				inside = false
+		check(inside, "level %d hotspots inside world" % lv)
+		# 彩蛋物体：数量、补丁精灵、点击触发反应且不计失误不计收集
+		check(game.reactives.size() >= 3, "level %d has >=3 reactive objects" % lv)
+		for r in game.reactives:
+			check(String(r.get("who", "")).length() > 0 and String(r.get("act", "")) in ["yawn", "chirp", "sway", "glow", "pour", "flutter", "hop"], "level %d reactive %s has its own act %s" % [lv, r.get("who", "?"), r.get("act", "?")])
+		if lv == 0 and game.reactives.size() > 0:
+			var m0: int = game.mistakes
+			var f0: int = game.found_count
+			var rres: String = game.handle_click(game.reactives[0]["pos"])
+			check(rres == "reactive", "click reactive -> reactive")
+			check(game.mistakes == m0 and game.found_count == f0, "reactive click: no mistake, no collect")
+			check(game.reactives[0]["patch"] != null, "reactive has patch sprite")
+		# 相机
+		game._zoom_at(Vector2(400, 400), 1.4)
+		var wp: Vector2 = game.screen_to_world(Vector2(300, 300))
+		check(wp.x > 0.0 and wp.y > 0.0, "level %d zoom + screen_to_world works" % lv)
+		game._reset_cam()
+		check(absf(game.zoom - game.ZOOM_MIN) < 0.001, "level %d reset view restores zoom" % lv)
+		if lv == 0:
+			var res: String = game.handle_click(game.targets[0]["pos"])
+			check(res == "found" and game.found_count == 1, "click hotspot -> found")
+			# 重复点已找到的热点不再计数
+			res = game.handle_click(game.targets[0]["pos"])
+			check(game.found_count == 1, "re-click found hotspot -> no double count")
+			# 已找到的目标不再悬停
+			game._update_hover(game.targets[0]["pos"])
+			check(game.hovered.is_empty(), "hover found target -> no hover")
+			# 点空地计失误
+			var before: int = game.mistakes
+			res = game.handle_click(empty_point(game))
+			check(res == "empty" and game.mistakes == before + 1, "click empty -> mistake +1")
+			# 提示扣次数
+			var hb: int = game.hints_left
+			game._on_hint()
+			check(game.hints_left == hb - 1, "hint consumes one")
+			# 找齐 -> 结算
+			for i in game.targets.size():
+				if not game.targets[i]["found"]:
+					game.handle_click(game.targets[i]["pos"])
+			# 画笔画圈 0.55 秒后才留标记、结算
+			await create_timer(0.8).timeout
+			check(game.found_count == game.targets.size(), "all targets found")
+			check(not game.playing, "game stops after win")
+			check(game.win_panel.visible, "win panel visible")
+			check(state.get_stars(0) >= 1, "stars saved for level 0")
+		game.queue_free()
+		await process_frame
+
+	if failures.is_empty():
+		print("== SMOKE TEST PASSED ==")
+		quit(0)
+	else:
+		printerr("== SMOKE TEST FAILED: %d ==" % failures.size())
+		quit(1)
