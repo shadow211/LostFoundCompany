@@ -63,6 +63,11 @@ func empty_screen_point(game) -> Vector2:
 						ok = false
 						break
 			if ok:
+				for h in game.inhabitants:
+					if p.distance_to(h["pos"]) < float(h["r"]) + 55.0:
+						ok = false
+						break
+			if ok:
 				return game.VIEW_RECT.position + (p - game.cam) * game.zoom
 	return Vector2(60, 750)
 
@@ -136,14 +141,14 @@ func run() -> void:
 	check(game.cam.x > cam0.x + 10.0, "drag pans camera (x %.1f -> %.1f)" % [cam0.x, game.cam.x])
 	game._reset_cam()
 
-	# 5) 真实点击目标 -> 画笔画圈 + 找到，0.55 秒后留绿圈✓
+	# 5) 真实点击目标 -> 亮绿圈 + 橙色气泡，0.9 秒后留绿圈✓
 	var tpos: Vector2 = game.targets[0]["pos"]
 	var spos: Vector2 = game.VIEW_RECT.position + (tpos - game.cam) * game.zoom
 	await push_btn(spos, MOUSE_BUTTON_LEFT, true)
 	await push_btn(spos, MOUSE_BUTTON_LEFT, false)
 	check(game.found_count == 1, "real click on target collects it")
-	await wait_sec(0.7)
-	check(game.rows[0]["check"].visible, "found target shows check after pen circle")
+	await wait_sec(1.1)
+	check(game.rows[0]["check"].visible, "found target shows check after green ring + bubble")
 	# 5b) 真实点击彩蛋猫 -> 打哈欠本色动作，不计分
 	var m_before: int = game.mistakes
 	var f_before: int = game.found_count
@@ -153,6 +158,16 @@ func run() -> void:
 	await push_btn(cat_spos, MOUSE_BUTTON_LEFT, false)
 	check(game.found_count == f_before and game.mistakes == m_before, "click cat reactive: no collect, no mistake")
 	check(game.reactives[0]["who"] == "灰猫" and game.reactives[0]["act"] == "yawn", "cat reactive is a yawning cat, not a generic scale")
+	# 5c) 真实点击住户小人 -> 原地蹦两下，不计分；住户补丁开场就显示
+	check(game.inhabitants[0]["patch"].visible, "inhabitant patch visible from start (idle breathing)")
+	var ih_pos: Vector2 = game.inhabitants[0]["pos"]
+	var ih_spos: Vector2 = game.VIEW_RECT.position + (ih_pos - game.cam) * game.zoom
+	await push_btn(ih_spos, MOUSE_BUTTON_LEFT, true)
+	await push_btn(ih_spos, MOUSE_BUTTON_LEFT, false)
+	check(game.found_count == f_before and game.mistakes == m_before, "click inhabitant: no collect, no mistake")
+	check(game.inhabitants[0]["who"] == "粉衣小人" and game.inhabitants[0]["act"] == "bob", "inhabitant is a strolling person, not a generic scale")
+	await wait_sec(0.6)
+	check(game.inhabitants[0]["patch"].visible, "inhabitant patch stays visible after its act")
 
 	# 6) 真实点击空地 -> 失误+1
 	var m0: int = game.mistakes

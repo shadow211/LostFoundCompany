@@ -41,6 +41,9 @@ var fx_root: Node2D
 var scene_tex: Texture2D
 var patch_root: Node2D
 var reactives: Array = []  # {who, act, say, pos, r, patch}
+var inhabitants: Array = []  # {who, act, say, idle, pos, r, patch, phase, speed, next_act}
+var _idle_time := 0.0
+const FOUND_FEEDBACK_DURATION := 0.9  # 找到反馈（绿圈+气泡）停留时间，之后才留常驻标记
 # ---------- 悬停 ----------
 var hovered: Dictionary = {}  # {} = 无悬停，否则 {"entry": Dictionary, "is_target": bool, "index": int}
 var _hover_tween: Tween
@@ -352,6 +355,35 @@ func _start_level() -> void:
 		}
 		rentry["patch"] = _make_patch(rentry["pos"], maxf(float(rd["r"]) * 1.4, 48.0))
 		reactives.append(rentry)
+	# 住户：场景里所有人/动物/花草。补丁从开场就一直显示，待机呼吸不停；
+	# 每隔几秒自己动一下，点中做本色动作、不计分、不收集。
+	for id in level.get("inhabitants", []):
+		var ientry := {
+			"who": String(id.get("who", "")), "act": String(id.get("act", "bob")),
+			"say": String(id.get("say", "")),
+			"idle": String(id.get("idle", "breathe")),
+			"pos": Vector2(float(id["x"]), float(id["y"])),
+			"r": float(id["r"]),
+		}
+		var ipatch := _make_patch(ientry["pos"], maxf(float(id["r"]) * 1.4, 48.0))
+		ipatch.visible = true
+		ipatch.set_meta("inhabitant", true)
+		ipatch.set_meta("base_scale", ipatch.scale)
+		ipatch.set_meta("base_pos", ipatch.position)
+		ientry["patch"] = ipatch
+		ientry["phase"] = randf() * TAU
+		ientry["speed"] = randf_range(2.2, 3.4)
+		ientry["next_act"] = randf_range(4.0, 10.0)
+		inhabitants.append(ientry)
+	# 飘落的花瓣/叶子：每关 8 片，颜色按关卡走，循环飘落
+	var petal_cols := [Color(1, 0.72, 0.82), Color(0.95, 0.85, 0.3), Color(1, 0.7, 0.85), Color(0.95, 0.6, 0.25)]
+	var pc: Color = petal_cols[level_index]
+	for k in 8:
+		var petal := DriftPetal.new()
+		petal.position = Vector2(randf_range(0.0, WORLD_SIZE.x), randf_range(0.0, WORLD_SIZE.y))
+		petal.z_index = 60
+		world.add_child(petal)
+		petal.setup(pc, randf_range(5.0, 9.0), randf_range(16.0, 30.0))
 	_update_hud()
 
 # ---------- 交互动画：把场景图里物体所在的小块裁出来做补丁精灵，点击时播放动画 ----------
@@ -370,20 +402,15 @@ func _make_patch(pos: Vector2, half: float) -> Sprite2D:
 	patch_root.add_child(sp)
 	return sp
 
-func _animate_patch(sp: Sprite2D, kind: String) -> void:
-	if sp.get_meta("animating", false):
-		return
-	_detach_hover_for_patch(sp)
-	if _hover_exit_tween and _hover_exit_tween.is_valid():
-		_hover_exit_tween.kill()
-	sp.set_meta("animating", true)
-	sp.visible = true
+## 动作 tween 本体：只负责把动作播完，不负责播完后隐藏还是保留，
+## 由 _animate_patch（播完隐藏）和 _play_inhabitant（播完保留）分别收尾。
+func _tween_act(sp: Sprite2D, kind: String) -> Tween:
 	var base_scale: Vector2 = sp.scale
 	var base_pos: Vector2 = sp.position
 	var tw := create_tween()
 	match kind:
 		"found":
-			# 目标找到：只轻轻弹一下，真正的主角是画笔画的圈
+			# 目标找到：只轻轻弹一下，真正的主角是亮绿圈 + 橙色气泡
 			var tw2 := create_tween()
 			tw2.tween_property(sp, "modulate", Color(1.5, 1.4, 1.1), 0.12)
 			tw2.tween_property(sp, "modulate", Color.WHITE, 0.35)
@@ -428,6 +455,25 @@ func _animate_patch(sp: Sprite2D, kind: String) -> void:
 			# 兔子：跳起落下
 			tw.tween_property(sp, "position", base_pos + Vector2(0, -20), 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			tw.tween_property(sp, "position", base_pos, 0.24).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+		"bob":
+			# 小人：原地轻轻蹦两下（个子小，幅度也小）
+			tw.tween_property(sp, "position", base_pos + Vector2(0, -6), 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tw.tween_property(sp, "position", base_pos, 0.12).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+			tw.tween_property(sp, "position", base_pos + Vector2(0, -5), 0.09).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tw.tween_property(sp, "position", base_pos, 0.12).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	return tw
+
+func _animate_patch(sp: Sprite2D, kind: String) -> void:
+	if sp.get_meta("animating", false):
+		return
+	_detach_hover_for_patch(sp)
+	if _hover_exit_tween and _hover_exit_tween.is_valid():
+		_hover_exit_tween.kill()
+	sp.set_meta("animating", true)
+	sp.visible = true
+	var base_scale: Vector2 = sp.scale
+	var base_pos: Vector2 = sp.position
+	var tw := _tween_act(sp, kind)
 	tw.tween_callback(func() -> void:
 		sp.rotation = 0.0
 		sp.position = base_pos
@@ -445,11 +491,15 @@ func _find_hover(world_pos: Vector2) -> Dictionary:
 	for i in targets.size():
 		var t: Dictionary = targets[i]
 		if not t["found"] and world_pos.distance_to(t["pos"]) <= float(t["r"]):
-			return {"entry": t, "is_target": true, "index": i}
+			return {"entry": t, "is_target": true, "index": i, "is_inhabitant": false}
 	for i in reactives.size():
 		var r: Dictionary = reactives[i]
 		if world_pos.distance_to(r["pos"]) <= float(r["r"]):
-			return {"entry": r, "is_target": false, "index": i}
+			return {"entry": r, "is_target": false, "index": i, "is_inhabitant": false}
+	for i in inhabitants.size():
+		var h: Dictionary = inhabitants[i]
+		if world_pos.distance_to(h["pos"]) <= float(h["r"]):
+			return {"entry": h, "is_target": false, "index": i, "is_inhabitant": true}
 	return {}
 
 func _update_hover(world_pos: Vector2) -> void:
@@ -519,6 +569,10 @@ func _clear_hover() -> void:
 	_hover_exit_tween.tween_property(patch, "modulate", Color.WHITE, 0.12)
 	_hover_exit_tween.tween_callback(func() -> void:
 		if not patch.get_meta("hovering", false) and not patch.get_meta("animating", false):
+			if patch.get_meta("inhabitant", false):
+				# 住户的补丁常驻显示（待机呼吸），移开只复原提亮，不隐藏
+				patch.modulate = Color.WHITE
+				return
 			patch.visible = false
 			patch.scale = base_scale
 			patch.position = base_pos
@@ -596,7 +650,8 @@ func _on_scene_input(event: InputEvent) -> void:
 			_last_mouse_screen = event.position + VIEW_RECT.position
 			_update_hover(screen_to_world(_last_mouse_screen))
 
-## 返回 "found" / "reactive" / "empty"，供输入处理与测试共用。
+## 返回 "found" / "reactive" / "inhabitant" / "empty"，供输入处理与测试共用。
+## 判定顺序：目标 > 彩蛋 > 住户 > 空地。
 func handle_click(pos: Vector2) -> String:
 	if not playing:
 		return "empty"
@@ -609,6 +664,10 @@ func handle_click(pos: Vector2) -> String:
 		if pos.distance_to(r["pos"]) <= float(r["r"]):
 			_play_reactive(r)
 			return "reactive"
+	for h in inhabitants:
+		if pos.distance_to(h["pos"]) <= float(h["r"]):
+			_play_inhabitant(h)
+			return "inhabitant"
 	mistakes += 1
 	_spawn_ripple(pos, Color(0.95, 0.45, 0.4, 0.8), 34.0, 0.3)
 	GameState.play_sfx("error")
@@ -622,9 +681,10 @@ func _spawn_ripple(pos: Vector2, col: Color, max_r: float, dur: float) -> void:
 	rp.z_index = 3200
 	fx_root.add_child(rp)
 
-## 点中目标：画笔画圈（0.55 秒）+ "找到了！"，画完才留绿圈✓标记。
-## 彩蛋不在清单里，所以没有画圈、没有 "找到了！"、不计分——这就是
-## 向日葵转了半天也不算找到的原因：它本来就不是要找的物品。
+## 点中目标：立刻亮绿圈 + 橙色“找到了！”气泡（参考原作视频），
+## 0.9 秒后才留绿圈✓标记。画笔画圈已不用，见 FoundRing/FoundBubble。
+## 彩蛋和住户不在清单里，所以没有绿圈、没有“找到了！”、不计分——
+## 这就是向日葵转了半天也不算找到的原因：它本来就不是要找的物品。
 func _found(i: int) -> void:
 	var t: Dictionary = targets[i]
 	t["found"] = true
@@ -632,14 +692,20 @@ func _found(i: int) -> void:
 	targets_left -= 1
 	GameState.play_sfx("found")
 	_animate_patch(t["patch"], "found")
-	var circle := DrawCircle.new()
-	circle.setup(float(t["r"]) + 14.0)
-	circle.position = t["pos"]
-	circle.z_index = 3400
-	fx_root.add_child(circle)
+	var ring := FoundRing.new()
+	ring.setup(float(t["r"]) + 14.0)
+	ring.position = t["pos"]
+	ring.z_index = 3400
+	fx_root.add_child(ring)
+	var bubble := FoundBubble.new()
+	bubble.setup("找到了！")
+	bubble.position = t["pos"] + Vector2(0, -float(t["r"]) - 34)
+	bubble.z_index = 3600
+	fx_root.add_child(bubble)
+	_spawn_ripple(t["pos"], Color(0.4, 0.95, 0.35, 0.8), float(t["r"]) + 20.0, 0.4)
 	_update_hud()
 	var tw := create_tween()
-	tw.tween_interval(DrawCircle.DURATION)
+	tw.tween_interval(FOUND_FEEDBACK_DURATION)
 	tw.tween_callback(func() -> void: _finish_found(i))
 
 func _finish_found(i: int) -> void:
@@ -652,11 +718,6 @@ func _finish_found(i: int) -> void:
 	marker.position = t["pos"]
 	marker.z_index = 3000
 	fx_root.add_child(marker)
-	var ft := FloatText.new()
-	ft.setup("找到了！", Color(0.2, 0.62, 0.25))
-	ft.position = t["pos"] + Vector2(0, -float(t["r"]) - 22)
-	ft.z_index = 3600
-	fx_root.add_child(ft)
 	if rows.has(i):
 		rows[i]["check"].visible = true
 		rows[i]["row"].modulate = Color(1, 1, 1, 0.45)
@@ -693,7 +754,7 @@ func _on_hint() -> void:
 	fx_root.add_child(ring)
 	_update_hud()
 
-## 供截图验证：把所有热点（目标+彩蛋）圈出来。
+## 供截图验证：把所有热点（目标+彩蛋+住户）圈出来。
 func debug_show_hotspots() -> void:
 	for t in targets:
 		var ring := HintRing.new()
@@ -705,6 +766,11 @@ func debug_show_hotspots() -> void:
 		ring2.position = r["pos"]
 		ring2.z_index = 4000
 		fx_root.add_child(ring2)
+	for h in inhabitants:
+		var ring3 := HintRing.new()
+		ring3.position = h["pos"]
+		ring3.z_index = 4000
+		fx_root.add_child(ring3)
 
 ## 彩蛋点中：只做它自己的动作（猫打哈欠、鸟叫、花摇……），不画圈、
 ## 不提示 "找到了！"、不计分、不收集。
@@ -725,10 +791,71 @@ func debug_trigger_reactive(i: int) -> void:
 	if i >= 0 and i < reactives.size():
 		_play_reactive(reactives[i])
 
+## 住户点中：和彩蛋一样，只做它自己的动作，不计分、不收集；
+## 不同的是住户的补丁常驻显示，播完动作要留在原地继续待机呼吸，
+## 不能像彩蛋那样播完隐藏。
+func _play_inhabitant(entry: Dictionary) -> void:
+	var patch: Sprite2D = entry["patch"]
+	if patch.get_meta("animating", false):
+		return
+	_detach_hover_for_patch(patch)
+	if _hover_exit_tween and _hover_exit_tween.is_valid():
+		_hover_exit_tween.kill()
+	patch.scale = patch.get_meta("base_scale", patch.scale)
+	patch.rotation = 0.0
+	patch.position = patch.get_meta("base_pos", patch.position)
+	patch.modulate = Color.WHITE
+	patch.visible = true
+	patch.set_meta("animating", true)
+	var base_scale: Vector2 = patch.get_meta("base_scale", patch.scale)
+	var base_pos: Vector2 = patch.get_meta("base_pos", patch.position)
+	var tw := _tween_act(patch, String(entry["act"]))
+	tw.tween_callback(func() -> void:
+		patch.rotation = 0.0
+		patch.position = base_pos
+		patch.scale = base_scale
+		patch.modulate = Color.WHITE
+		patch.visible = true
+		patch.set_meta("animating", false))
+	var say := String(entry.get("say", ""))
+	if not say.is_empty():
+		var ft := FloatText.new()
+		ft.setup(say, Color(0.5, 0.32, 0.12))
+		ft.position = entry["pos"] + Vector2(0, -float(entry["r"]) - 18)
+		ft.z_index = 3600
+		fx_root.add_child(ft)
+	_spawn_ripple(entry["pos"], Color(1, 1, 1, 0.85), float(entry["r"]) + 16.0, 0.35)
+	GameState.play_sfx("pop")
+
+## 供截图验证：触发第 i 个住户的动画。
+func debug_trigger_inhabitant(i: int) -> void:
+	if i >= 0 and i < inhabitants.size():
+		_play_inhabitant(inhabitants[i])
+
 func _process(delta: float) -> void:
 	if playing and not dialogue_active:
 		elapsed += delta
 		timer_label.text = _fmt_time(elapsed)
+	# 住户待机：每帧按正弦呼吸/轻摆；对话和结算时也动，场景一直是活的。
+	# 点中动画或悬停时不动手，等动作播完再接上。
+	_idle_time += delta
+	for h in inhabitants:
+		var patch: Sprite2D = h["patch"]
+		if patch.get_meta("animating", false) or patch.get_meta("hovering", false):
+			continue
+		var base_scale: Vector2 = patch.get_meta("base_scale", patch.scale)
+		var ph: float = float(h["phase"])
+		var sp: float = float(h["speed"])
+		if String(h["idle"]) == "sway":
+			patch.rotation = 0.03 * sin(_idle_time * sp * 0.6 + ph)
+		else:
+			var s := 1.0 + 0.035 * sin(_idle_time * sp + ph)
+			patch.scale = Vector2(base_scale.x, base_scale.y * s)
+		if playing and not dialogue_active:
+			h["next_act"] = float(h["next_act"]) - delta
+			if float(h["next_act"]) <= 0.0:
+				h["next_act"] = randf_range(7.0, 14.0)
+				_play_inhabitant(h)
 
 func _fmt_time(sec: float) -> String:
 	var s := int(sec)

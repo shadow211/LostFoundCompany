@@ -30,6 +30,19 @@ const DATA: Array = [
 			{"who": "浇水壶", "x": 1293, "y": 726, "r": 42, "act": "pour", "say": "哗啦"},
 			{"who": "向日葵", "x": 910, "y": 184, "r": 44, "act": "sway", "say": ""},
 		],
+		# 住户：场景里所有人/动物/花草，不在清单里。平时待机呼吸，
+		# 每隔几秒自己动一下，点中做本色动作、不计分、不收集。
+		# idle: breathe=呼吸起伏，sway=左右轻摆。
+		"inhabitants": [
+			{"who": "粉衣小人", "x": 467, "y": 250, "r": 30, "act": "bob", "say": "逛逛～", "idle": "breathe"},
+			{"who": "提篮绿衣人", "x": 958, "y": 350, "r": 30, "act": "bob", "say": "", "idle": "breathe"},
+			{"who": "粉帽小人", "x": 658, "y": 496, "r": 30, "act": "bob", "say": "你好呀", "idle": "breathe"},
+			{"who": "提篮人", "x": 725, "y": 508, "r": 30, "act": "bob", "say": "", "idle": "breathe"},
+			{"who": "紫衣小人", "x": 783, "y": 983, "r": 30, "act": "bob", "say": "", "idle": "breathe"},
+			{"who": "黑白猫", "x": 1133, "y": 1042, "r": 30, "act": "yawn", "say": "喵～", "idle": "breathe"},
+			{"who": "路灯", "x": 1133, "y": 850, "r": 36, "act": "glow", "say": "", "idle": "breathe"},
+			{"who": "粉花丛", "x": 292, "y": 933, "r": 40, "act": "sway", "say": "", "idle": "sway"},
+		],
 		"intro": [
 			["店长猫 · 阿橘", "小满在小镇街上逛了一圈，把心爱的宝贝掉了一路！"],
 			["小满", "拜托拜托！清单在右边，一共 6 样。街道可以拖动、滚轮放大，慢慢看～"],
@@ -59,6 +72,16 @@ const DATA: Array = [
 			{"who": "布料堆", "x": 875, "y": 790, "r": 48, "act": "flutter", "say": ""},
 			{"who": "灯笼", "x": 267, "y": 196, "r": 40, "act": "glow", "say": ""},
 			{"who": "蓝花", "x": 1467, "y": 825, "r": 36, "act": "sway", "say": ""},
+		],
+		"inhabitants": [
+			{"who": "蓝衣小人", "x": 633, "y": 125, "r": 28, "act": "bob", "say": "逛逛～", "idle": "breathe"},
+			{"who": "棕衣小人", "x": 592, "y": 283, "r": 28, "act": "bob", "say": "", "idle": "breathe"},
+			{"who": "蓝衣小人", "x": 983, "y": 325, "r": 20, "act": "bob", "say": "", "idle": "breathe"},
+			{"who": "棕衣小人", "x": 1025, "y": 325, "r": 20, "act": "bob", "say": "你好呀", "idle": "breathe"},
+			{"who": "蓝衣小人", "x": 542, "y": 567, "r": 20, "act": "bob", "say": "", "idle": "breathe"},
+			{"who": "红衣小人", "x": 558, "y": 608, "r": 20, "act": "bob", "say": "", "idle": "breathe"},
+			{"who": "提篮人", "x": 942, "y": 550, "r": 28, "act": "bob", "say": "", "idle": "breathe"},
+			{"who": "蓝衣小人", "x": 1133, "y": 100, "r": 28, "act": "bob", "say": "", "idle": "breathe"},
 		],
 		"intro": [
 			["店长猫 · 阿橘", "市集开市啦！露露的摊位被人群挤得乱七八糟，8 样东西散落在各个摊位里。"],
@@ -92,6 +115,16 @@ const DATA: Array = [
 			{"who": "小鸟", "x": 1181, "y": 645, "r": 36, "act": "chirp", "say": "啾啾♪"},
 			{"who": "石灯", "x": 1261, "y": 538, "r": 42, "act": "glow", "say": ""},
 		],
+		"inhabitants": [
+			{"who": "小鸟", "x": 891, "y": 75, "r": 28, "act": "chirp", "say": "啾啾♪", "idle": "breathe"},
+			{"who": "小鸟", "x": 874, "y": 211, "r": 28, "act": "chirp", "say": "", "idle": "breathe"},
+			{"who": "小鸟", "x": 1002, "y": 286, "r": 28, "act": "chirp", "say": "", "idle": "breathe"},
+			{"who": "小鸟", "x": 1088, "y": 304, "r": 28, "act": "chirp", "say": "啾啾♪", "idle": "breathe"},
+			{"who": "小鸟", "x": 949, "y": 740, "r": 28, "act": "chirp", "say": "", "idle": "breathe"},
+			{"who": "粉花丛", "x": 250, "y": 83, "r": 40, "act": "sway", "say": "", "idle": "sway"},
+			{"who": "蓝花丛", "x": 1458, "y": 250, "r": 40, "act": "sway", "say": "", "idle": "sway"},
+			{"who": "石灯", "x": 325, "y": 550, "r": 36, "act": "glow", "say": "", "idle": "breathe"},
+		],
 		"intro": [
 			["店长猫 · 阿橘", "园丁刺猬奶奶的花园办派对，10 样东西被草丛和花丛藏起来了。"],
 			["刺猬奶奶", "慢慢找，孩子。花园大，多放大、多拖动看看。实在找不到，就用提示。"],
@@ -123,6 +156,17 @@ const DATA: Array = [
 			{"who": "白兔子", "x": 1203, "y": 397, "r": 42, "act": "hop", "say": "蹦"},
 			{"who": "虎斑猫", "x": 248, "y": 652, "r": 44, "act": "yawn", "say": "哈～"},
 			{"who": "蓝花", "x": 869, "y": 295, "r": 36, "act": "sway", "say": ""},
+		],
+		"inhabitants": [
+			{"who": "小鸟", "x": 1165, "y": 187, "r": 28, "act": "chirp", "say": "啾啾♪", "idle": "breathe"},
+			{"who": "小鸟", "x": 1011, "y": 270, "r": 28, "act": "chirp", "say": "", "idle": "breathe"},
+			{"who": "小鸟", "x": 1134, "y": 280, "r": 28, "act": "chirp", "say": "", "idle": "breathe"},
+			{"who": "小鸟", "x": 1261, "y": 473, "r": 28, "act": "chirp", "say": "啾啾♪", "idle": "breathe"},
+			{"who": "竹林", "x": 208, "y": 375, "r": 48, "act": "sway", "say": "", "idle": "sway"},
+			{"who": "竹林", "x": 1542, "y": 317, "r": 48, "act": "sway", "say": "", "idle": "sway"},
+			{"who": "粉花丛", "x": 583, "y": 333, "r": 40, "act": "sway", "say": "", "idle": "sway"},
+			{"who": "紫花丛", "x": 333, "y": 583, "r": 40, "act": "sway", "say": "", "idle": "sway"},
+			{"who": "石灯", "x": 1458, "y": 817, "r": 36, "act": "glow", "say": "", "idle": "breathe"},
 		],
 		"intro": [
 			["店长猫 · 阿橘", "秋游的客人把东西丢了满公园，连松鼠都帮忙藏了几件！"],
