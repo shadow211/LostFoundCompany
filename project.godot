@@ -1,10 +1,5 @@
 ; Engine configuration file.
-; It's best edited using the editor UI and not directly,
-; since the parameters that go here are not all obvious.
-;
-; Format:
-;   [section] ; section goes between []
-;   param=value ; assign values to parameters
+; It's best edited using the editor UI and not directly.
 
 config_version=5
 
@@ -13,7 +8,7 @@ config_version=5
 config/name="寻物小铺 · Hidden Object"
 config/description="隐藏物品寻物小游戏：按清单在场景里找出所有物品。原创练习作。"
 run/main_scene="res://scenes/Main.tscn"
-config/features=PackedStringArray("4.5", "GL Compatibility")
+config/features=PackedStringArray("4.3", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -25,6 +20,7 @@ GameState="*res://scripts/state.gd"
 window/size/viewport_width=1280
 window/size/viewport_height=800
 window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
 
 [rendering]
 
