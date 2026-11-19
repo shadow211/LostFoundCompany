@@ -41,12 +41,15 @@ func run() -> void:
 			await create_timer(0.2).timeout
 			game.handle_click(game.targets[0]["pos"])
 			await create_timer(0.25).timeout
-			await snap("level1_found_circle")
-			await create_timer(0.6).timeout
+			await snap("level1_found_ring")
+			await create_timer(0.8).timeout
 			await snap("level1_found_done")
 			game.debug_trigger_reactive(0)
 			await create_timer(0.35).timeout
 			await snap("level1_cat_yawn")
+			game.debug_trigger_inhabitant(5)
+			await create_timer(0.35).timeout
+			await snap("level1_inhabitant_cat")
 		game.debug_show_hotspots()
 		await snap("level%d_hotspots" % (lv + 1))
 		game.debug_trigger_reactive(0)

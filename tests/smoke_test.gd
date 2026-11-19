@@ -30,6 +30,11 @@ func empty_point(game) -> Vector2:
 						ok = false
 						break
 			if ok:
+				for h in game.inhabitants:
+					if p.distance_to(h["pos"]) < float(h["r"]) + 55.0:
+						ok = false
+						break
+			if ok:
 				return p
 	return Vector2(5, 5)
 
@@ -97,7 +102,34 @@ func run() -> void:
 		# 彩蛋物体：数量、补丁精灵、点击触发反应且不计失误不计收集
 		check(game.reactives.size() >= 3, "level %d has >=3 reactive objects" % lv)
 		for r in game.reactives:
-			check(String(r.get("who", "")).length() > 0 and String(r.get("act", "")) in ["yawn", "chirp", "sway", "glow", "pour", "flutter", "hop"], "level %d reactive %s has its own act %s" % [lv, r.get("who", "?"), r.get("act", "?")])
+			check(String(r.get("who", "")).length() > 0 and String(r.get("act", "")) in ["yawn", "chirp", "sway", "glow", "pour", "flutter", "hop", "bob"], "level %d reactive %s has its own act %s" % [lv, r.get("who", "?"), r.get("act", "?")])
+		# 住户：每关所有人/动物/花草都有待机呼吸，补丁从开场就显示，
+		# 点中做本色动作、不计失误不计收集；住户之间、住户与目标不重叠
+		check(game.inhabitants.size() >= 7, "level %d has >=7 inhabitants" % lv)
+		for h in game.inhabitants:
+			check(String(h.get("who", "")).length() > 0 and String(h.get("act", "")) in ["yawn", "chirp", "sway", "glow", "pour", "flutter", "hop", "bob"], "level %d inhabitant %s has its own act %s" % [lv, h.get("who", "?"), h.get("act", "?")])
+			check(String(h.get("idle", "")) in ["breathe", "sway"], "level %d inhabitant %s has idle %s" % [lv, h.get("who", "?"), h.get("idle", "?")])
+			check(h["patch"] != null and h["patch"].visible, "level %d inhabitant %s patch visible from start" % [lv, h.get("who", "?")])
+		var inhab_overlap := false
+		for h in game.inhabitants:
+			for t in game.targets:
+				if h["pos"].distance_to(t["pos"]) < float(h["r"]) + float(t["r"]):
+					inhab_overlap = true
+		check(not inhab_overlap, "level %d inhabitants do not overlap targets" % lv)
+		if lv == 0 and game.inhabitants.size() > 0:
+			var ih0: Dictionary = game.inhabitants[0]
+			game._update_hover(ih0["pos"])
+			check(not game.hovered.is_empty() and not game.hovered["is_target"] and game.hovered.get("is_inhabitant", false), "level %d hover inhabitant sets hovered" % lv)
+			game._clear_hover()
+			await create_timer(0.2).timeout
+			check(ih0["patch"].visible, "level %d hover exit keeps inhabitant patch visible" % lv)
+			var im0: int = game.mistakes
+			var if0: int = game.found_count
+			var ires: String = game.handle_click(ih0["pos"])
+			check(ires == "inhabitant", "click inhabitant -> inhabitant")
+			check(game.mistakes == im0 and game.found_count == if0, "inhabitant click: no mistake, no collect")
+			await create_timer(0.6).timeout
+			check(ih0["patch"].visible, "inhabitant patch stays visible after its act")
 		if lv == 0 and game.reactives.size() > 0:
 			var m0: int = game.mistakes
 			var f0: int = game.found_count
@@ -132,8 +164,8 @@ func run() -> void:
 			for i in game.targets.size():
 				if not game.targets[i]["found"]:
 					game.handle_click(game.targets[i]["pos"])
-			# 画笔画圈 0.55 秒后才留标记、结算
-			await create_timer(0.8).timeout
+			# 亮绿圈 + 橙色气泡 0.9 秒后才留标记、结算
+			await create_timer(1.2).timeout
 			check(game.found_count == game.targets.size(), "all targets found")
 			check(not game.playing, "game stops after win")
 			check(game.win_panel.visible, "win panel visible")
