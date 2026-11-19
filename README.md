@@ -1,4 +1,4 @@
-# 寻物小铺 · Hidden Object（Godot 4 复刻练习 · v5）
+# 寻物小铺 · Hidden Object（Godot 4 复刻练习 · v6）
 
 一款隐藏物品（Hidden Object）寻物小游戏，按 Steam 上《Lost and Found Co.》
 （《失物招领有限公司》）这类找物游戏的**玩法结构与画法**复刻：
@@ -42,7 +42,7 @@
 
 ## 运行
 
-1. 安装 [Godot 4.3+](https://godotengine.org/download)（免费）
+1. 安装 [Godot 4.5](https://godotengine.org/download)（免费）
 2. 解压本包，用 Godot 导入 `project.godot` 所在目录
 3. 按 F5 运行；也可以在编辑器里「项目 → 导出」生成可执行文件
 
