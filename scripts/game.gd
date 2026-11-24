@@ -155,6 +155,7 @@ func _build_ui() -> void:
 	top.add_theme_stylebox_override("panel", _panel(Color(1, 0.99, 0.95)))
 	top.position = Vector2(16, 12)
 	top.size = Vector2(1248, 56)
+	top.z_index = 4096
 	add_child(top)
 	var top_row := HBoxContainer.new()
 	top_row.add_theme_constant_override("separation", 24)
@@ -189,6 +190,7 @@ func _build_ui() -> void:
 	list_panel.add_theme_stylebox_override("panel", _panel(Color(1, 0.99, 0.95)))
 	list_panel.position = Vector2(1000, 80)
 	list_panel.size = Vector2(264, 704)
+	list_panel.z_index = 4096
 	add_child(list_panel)
 	var lv := VBoxContainer.new()
 	lv.add_theme_constant_override("separation", 8)
@@ -202,6 +204,7 @@ func _build_ui() -> void:
 	miss_marker = _mk_label("✕", 34, Color(0.85, 0.2, 0.15))
 	miss_marker.visible = false
 	miss_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	miss_marker.z_index = 4096
 	add_child(miss_marker)
 
 	_build_dialogue()
@@ -213,6 +216,11 @@ func _build_dialogue() -> void:
 	dialogue_panel.position = Vector2(16, 800 - 168)
 	dialogue_panel.size = Vector2(1248, 152)
 	dialogue_panel.visible = false
+	# UI 必须盖过世界层：补丁 z=100、特效 z 到 4000，对话面板在屏幕
+	# 底部与场景视图重叠，z 不够高就会被住户补丁盖住字（2026-11-24 实测）。
+	# 4096 是引擎允许的最大 z（CANVAS_ITEM_Z_MAX），10000 会报错；
+	# z 不影响 Control 的 gui_input（2026-11-24 实测：输入测试 25 项全过）。
+	dialogue_panel.z_index = 4096
 	dialogue_panel.gui_input.connect(_on_dialogue_input)
 	add_child(dialogue_panel)
 	var v := VBoxContainer.new()
@@ -233,6 +241,7 @@ func _build_win_panel() -> void:
 	win_panel.custom_minimum_size = Vector2(460, 0)
 	win_panel.position = Vector2(410, 210)
 	win_panel.visible = false
+	win_panel.z_index = 4096
 	add_child(win_panel)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 12)
@@ -353,7 +362,7 @@ func _start_level() -> void:
 			"pos": Vector2(float(rd["x"]), float(rd["y"])),
 			"r": float(rd["r"]),
 		}
-		rentry["patch"] = _make_patch(rentry["pos"], maxf(float(rd["r"]) * 1.4, 48.0))
+		rentry["patch"] = _patch_for(rd, rentry["pos"], maxf(float(rd["r"]) * 1.4, 48.0))
 		reactives.append(rentry)
 	# 住户：场景里所有人/动物/花草。补丁从开场就一直显示，待机呼吸不停；
 	# 每隔几秒自己动一下，点中做本色动作、不计分、不收集。
@@ -365,7 +374,7 @@ func _start_level() -> void:
 			"pos": Vector2(float(id["x"]), float(id["y"])),
 			"r": float(id["r"]),
 		}
-		var ipatch := _make_patch(ientry["pos"], maxf(float(id["r"]) * 1.4, 48.0))
+		var ipatch := _patch_for(id, ientry["pos"], maxf(float(id["r"]) * 1.4, 48.0))
 		ipatch.visible = true
 		ipatch.set_meta("inhabitant", true)
 		ipatch.set_meta("base_scale", ipatch.scale)
@@ -401,6 +410,31 @@ func _make_patch(pos: Vector2, half: float) -> Sprite2D:
 	sp.z_index = 100
 	patch_root.add_child(sp)
 	return sp
+
+## 单张精灵：动植物已从场景原图抠成透明底 PNG（tools/extract_street.py），
+## srect 是它在世界里的矩形 [x0,y0,x1,y1]。动起来只有人物本身动，
+## 背景不动；底板（scene_street_anim.webp）里人物已被抠掉补上背景，
+## 所以静止时精灵和底板严丝合缝，看不出是两层。
+func _make_sprite(sprite_path: String, srect: Array) -> Sprite2D:
+	var tex: Texture2D = load(sprite_path)
+	var sp := Sprite2D.new()
+	sp.texture = tex
+	sp.position = Vector2(
+		(float(srect[0]) + float(srect[2])) * 0.5,
+		(float(srect[1]) + float(srect[3])) * 0.5)
+	var img := scene_tex.get_image()
+	var kx := float(img.get_width()) / WORLD_SIZE.x
+	var ky := float(img.get_height()) / WORLD_SIZE.y
+	sp.scale = Vector2(1.0 / kx, 1.0 / ky)
+	sp.visible = false
+	sp.z_index = 100
+	patch_root.add_child(sp)
+	return sp
+
+func _patch_for(entry_data: Dictionary, pos: Vector2, half: float) -> Sprite2D:
+	if entry_data.has("sprite") and entry_data.has("srect"):
+		return _make_sprite(String(entry_data["sprite"]), entry_data["srect"])
+	return _make_patch(pos, half)
 
 ## 动作 tween 本体：只负责把动作播完，不负责播完后隐藏还是保留，
 ## 由 _animate_patch（播完隐藏）和 _play_inhabitant（播完保留）分别收尾。

@@ -10,7 +10,7 @@ extends RefCounted
 const DATA: Array = [
 	{
 		"name": "小镇街道",
-		"scene": "res://assets/scene_street.webp",
+		"scene": "res://assets/scene_street_anim.webp",
 		"hints": 3,
 		"par_time": 120,
 		"targets": [
@@ -23,25 +23,32 @@ const DATA: Array = [
 		],
 		# 彩蛋：不在清单里，点中只做本色动作、不计分、不收集。
 		# who=画面里实际是什么，act=动作，say=点中时飘的字。
+		# sprite=抠出来的透明底单张（tools/extract_street.py 生成），
+		# srect=单张在世界里的矩形 [x0,y0,x1,y1]，精灵按它摆放；
+		# 底板 scene_street_anim.webp 里人物已抠掉、补上了背景。
 		"reactives": [
-			{"who": "灰猫", "x": 893, "y": 729, "r": 46, "act": "yawn", "say": "喵～"},
-			{"who": "橘猫", "x": 435, "y": 518, "r": 44, "act": "yawn", "say": "哈～"},
-			{"who": "小鸟", "x": 587, "y": 892, "r": 36, "act": "chirp", "say": "啾啾♪"},
-			{"who": "浇水壶", "x": 1293, "y": 726, "r": 42, "act": "pour", "say": "哗啦"},
-			{"who": "向日葵", "x": 910, "y": 184, "r": 44, "act": "sway", "say": ""},
+			{"who": "灰猫", "x": 893, "y": 729, "r": 46, "act": "yawn", "say": "喵～", "sprite": "res://assets/sprites/street/cat_grey.png", "srect": [836.7, 672.5, 948.3, 785.0]},
+			{"who": "橘猫", "x": 435, "y": 518, "r": 44, "act": "yawn", "say": "哈～", "sprite": "res://assets/sprites/street/cat_orange.png", "srect": [378.3, 461.7, 490.8, 573.3]},
+			{"who": "小鸟", "x": 587, "y": 892, "r": 36, "act": "chirp", "say": "啾啾♪", "sprite": "res://assets/sprites/street/bird.png", "srect": [536.7, 841.7, 636.7, 941.7]},
+			{"who": "浇水壶", "x": 1293, "y": 726, "r": 42, "act": "pour", "say": "哗啦", "sprite": "res://assets/sprites/street/kettle.png", "srect": [1233.3, 666.7, 1351.7, 784.2]},
+			{"who": "向日葵", "x": 910, "y": 184, "r": 44, "act": "sway", "say": "", "sprite": "res://assets/sprites/street/sunflower.png", "srect": [847.5, 121.7, 971.7, 245.8]},
 		],
 		# 住户：场景里所有人/动物/花草，不在清单里。平时待机呼吸，
 		# 每隔几秒自己动一下，点中做本色动作、不计分、不收集。
 		# idle: breathe=呼吸起伏，sway=左右轻摆。
+		# 2026-11-24 位置按场景图重核：粉帽小人/提篮人/紫衣小人/
+		# 黑白猫/路灯原来偏了 30-80，提篮绿衣人偏了 35；另补一只
+		# 右上灰猫（原来漏了）。
 		"inhabitants": [
-			{"who": "粉衣小人", "x": 467, "y": 250, "r": 30, "act": "bob", "say": "逛逛～", "idle": "breathe"},
-			{"who": "提篮绿衣人", "x": 958, "y": 350, "r": 30, "act": "bob", "say": "", "idle": "breathe"},
-			{"who": "粉帽小人", "x": 658, "y": 496, "r": 30, "act": "bob", "say": "你好呀", "idle": "breathe"},
-			{"who": "提篮人", "x": 725, "y": 508, "r": 30, "act": "bob", "say": "", "idle": "breathe"},
-			{"who": "紫衣小人", "x": 783, "y": 983, "r": 30, "act": "bob", "say": "", "idle": "breathe"},
-			{"who": "黑白猫", "x": 1133, "y": 1042, "r": 30, "act": "yawn", "say": "喵～", "idle": "breathe"},
-			{"who": "路灯", "x": 1133, "y": 850, "r": 36, "act": "glow", "say": "", "idle": "breathe"},
-			{"who": "粉花丛", "x": 292, "y": 933, "r": 40, "act": "sway", "say": "", "idle": "sway"},
+			{"who": "粉衣小人", "x": 470, "y": 255, "r": 30, "act": "bob", "say": "逛逛～", "idle": "breathe", "sprite": "res://assets/sprites/street/person_pink.png", "srect": [421.7, 206.7, 517.5, 302.5]},
+			{"who": "提篮绿衣人", "x": 928, "y": 360, "r": 30, "act": "bob", "say": "", "idle": "breathe", "sprite": "res://assets/sprites/street/person_basket_green.png", "srect": [880.0, 311.7, 975.8, 407.5]},
+			{"who": "粉帽小人", "x": 709, "y": 500, "r": 30, "act": "bob", "say": "你好呀", "idle": "breathe", "sprite": "res://assets/sprites/street/person_hat_pink.png", "srect": [660.8, 451.7, 756.7, 547.5]},
+			{"who": "提篮人", "x": 765, "y": 515, "r": 30, "act": "bob", "say": "", "idle": "breathe", "sprite": "res://assets/sprites/street/person_basket.png", "srect": [716.7, 466.7, 812.5, 562.5]},
+			{"who": "紫衣小人", "x": 829, "y": 969, "r": 30, "act": "bob", "say": "", "idle": "breathe", "sprite": "res://assets/sprites/street/person_purple.png", "srect": [780.8, 920.8, 876.7, 1016.7]},
+			{"who": "黑白猫", "x": 1186, "y": 1036, "r": 30, "act": "yawn", "say": "喵～", "idle": "breathe", "sprite": "res://assets/sprites/street/cat_bw.png", "srect": [1137.5, 987.5, 1233.3, 1066.7]},
+			{"who": "路灯", "x": 1181, "y": 823, "r": 36, "act": "glow", "say": "", "idle": "breathe", "sprite": "res://assets/sprites/street/lamp.png", "srect": [1145.8, 790.0, 1215.8, 1060.0]},
+			{"who": "粉花丛", "x": 292, "y": 933, "r": 40, "act": "sway", "say": "", "idle": "sway", "sprite": "res://assets/sprites/street/flowers_pink.png", "srect": [226.7, 876.7, 356.7, 988.3]},
+			{"who": "灰猫（右上）", "x": 1019, "y": 330, "r": 28, "act": "yawn", "say": "喵～", "idle": "breathe", "sprite": "res://assets/sprites/street/cat_grey2.png", "srect": [970.8, 281.7, 1066.7, 377.5]},
 		],
 		"intro": [
 			["店长猫 · 阿橘", "小满在小镇街上逛了一圈，把心爱的宝贝掉了一路！"],
