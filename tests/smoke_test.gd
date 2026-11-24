@@ -73,7 +73,7 @@ func run() -> void:
 		game._update_hover(game.targets[0]["pos"])
 		check(not game.hovered.is_empty() and game.hovered["is_target"], "level %d hover target sets hovered" % lv)
 		check(game.targets[0]["patch"].visible, "level %d hover target shows patch" % lv)
-		check(game.found_count == 0 and game.mistakes == 0, "level %d hover: no collect, no mistake" % lv)
+		check(game.found_count == 0, "level %d hover: no collect" % lv)
 		check(game._hover_ring != null, "level %d hover shows ring" % lv)
 		game._update_hover(empty_point(game))
 		check(game.hovered.is_empty(), "level %d hover empty clears hovered" % lv)
@@ -108,8 +108,17 @@ func run() -> void:
 		check(game.inhabitants.size() >= 7, "level %d has >=7 inhabitants" % lv)
 		for h in game.inhabitants:
 			check(String(h.get("who", "")).length() > 0 and String(h.get("act", "")) in ["yawn", "chirp", "sway", "glow", "pour", "flutter", "hop", "bob"], "level %d inhabitant %s has its own act %s" % [lv, h.get("who", "?"), h.get("act", "?")])
-			check(String(h.get("idle", "")) in ["breathe", "sway"], "level %d inhabitant %s has idle %s" % [lv, h.get("who", "?"), h.get("idle", "?")])
+			check(String(h.get("idle", "")) in ["breathe", "sway", "still"], "level %d inhabitant %s has idle %s" % [lv, h.get("who", "?"), h.get("idle", "?")])
 			check(h["patch"] != null and h["patch"].visible, "level %d inhabitant %s patch visible from start" % [lv, h.get("who", "?")])
+		# 静物住户（路灯/石灯）：待机不动，半秒后位置/缩放/旋转一点没变
+		var stills: Array = []
+		for h in game.inhabitants:
+			if bool(h.get("still", false)):
+				stills.append([h["patch"], h["patch"].position, h["patch"].scale, h["patch"].rotation, String(h.get("who", "?"))])
+		if stills.size() > 0:
+			await create_timer(0.5).timeout
+			for s in stills:
+				check(s[0].position == s[1] and s[0].scale == s[2] and s[0].rotation == s[3], "level %d still inhabitant %s stays put while idling" % [lv, s[4]])
 		var inhab_overlap := false
 		for h in game.inhabitants:
 			for t in game.targets:
@@ -123,20 +132,27 @@ func run() -> void:
 			game._clear_hover()
 			await create_timer(0.2).timeout
 			check(ih0["patch"].visible, "level %d hover exit keeps inhabitant patch visible" % lv)
-			var im0: int = game.mistakes
 			var if0: int = game.found_count
 			var ires: String = game.handle_click(ih0["pos"])
 			check(ires == "inhabitant", "click inhabitant -> inhabitant")
-			check(game.mistakes == im0 and game.found_count == if0, "inhabitant click: no mistake, no collect")
+			check(game.found_count == if0, "inhabitant click: no collect")
 			await create_timer(0.6).timeout
 			check(ih0["patch"].visible, "inhabitant patch stays visible after its act")
 		if lv == 0 and game.reactives.size() > 0:
-			var m0: int = game.mistakes
 			var f0: int = game.found_count
 			var rres: String = game.handle_click(game.reactives[0]["pos"])
 			check(rres == "reactive", "click reactive -> reactive")
-			check(game.mistakes == m0 and game.found_count == f0, "reactive click: no mistake, no collect")
+			check(game.found_count == f0, "reactive click: no collect")
 			check(game.reactives[0]["patch"] != null, "reactive has patch sprite")
+		# 静物彩蛋（浇水壶/灯笼/布料堆/石灯）：点中只亮一下，不位移、不缩放、不旋转
+		for r in game.reactives:
+			if bool(r.get("still", false)):
+				var pp0: Vector2 = r["patch"].position
+				var ss0: Vector2 = r["patch"].scale
+				var rr0: float = r["patch"].rotation
+				var srres: String = game.handle_click(r["pos"])
+				check(srres == "reactive", "click still reactive %s -> reactive" % r.get("who", "?"))
+				check(r["patch"].position == pp0 and r["patch"].scale == ss0 and r["patch"].rotation == rr0, "still reactive %s does not move on click" % r.get("who", "?"))
 		# 相机
 		game._zoom_at(Vector2(400, 400), 1.4)
 		var wp: Vector2 = game.screen_to_world(Vector2(300, 300))
@@ -152,10 +168,11 @@ func run() -> void:
 			# 已找到的目标不再悬停
 			game._update_hover(game.targets[0]["pos"])
 			check(game.hovered.is_empty(), "hover found target -> no hover")
-			# 点空地计失误
-			var before: int = game.mistakes
+			# 点空地不计失误、不收集；HUD 里没有失误数
+			var before: int = game.found_count
 			res = game.handle_click(empty_point(game))
-			check(res == "empty" and game.mistakes == before + 1, "click empty -> mistake +1")
+			check(res == "empty" and game.found_count == before, "click empty -> no mistake, no collect")
+			check(not ("失误" in game.progress_label.text), "HUD shows no mistake count")
 			# 提示扣次数
 			var hb: int = game.hints_left
 			game._on_hint()

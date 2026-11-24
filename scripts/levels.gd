@@ -30,7 +30,7 @@ const DATA: Array = [
 			{"who": "灰猫", "x": 893, "y": 729, "r": 46, "act": "yawn", "say": "喵～", "sprite": "res://assets/sprites/street/cat_grey.png", "srect": [836.7, 672.5, 948.3, 785.0]},
 			{"who": "橘猫", "x": 435, "y": 518, "r": 44, "act": "yawn", "say": "哈～", "sprite": "res://assets/sprites/street/cat_orange.png", "srect": [378.3, 461.7, 490.8, 573.3]},
 			{"who": "小鸟", "x": 587, "y": 892, "r": 36, "act": "chirp", "say": "啾啾♪", "sprite": "res://assets/sprites/street/bird.png", "srect": [536.7, 841.7, 636.7, 941.7]},
-			{"who": "浇水壶", "x": 1293, "y": 726, "r": 42, "act": "pour", "say": "哗啦", "sprite": "res://assets/sprites/street/kettle.png", "srect": [1233.3, 666.7, 1351.7, 784.2]},
+			{"who": "浇水壶", "x": 1293, "y": 726, "r": 42, "act": "pour", "say": "哗啦", "still": true, "sprite": "res://assets/sprites/street/kettle.png", "srect": [1233.3, 666.7, 1351.7, 784.2]},
 			{"who": "向日葵", "x": 910, "y": 184, "r": 44, "act": "sway", "say": "", "sprite": "res://assets/sprites/street/sunflower.png", "srect": [847.5, 121.7, 971.7, 245.8]},
 		],
 		# 住户：场景里所有人/动物/花草，不在清单里。平时待机呼吸，
@@ -46,7 +46,7 @@ const DATA: Array = [
 			{"who": "提篮人", "x": 765, "y": 515, "r": 30, "act": "bob", "say": "", "idle": "breathe", "sprite": "res://assets/sprites/street/person_basket.png", "srect": [716.7, 466.7, 812.5, 562.5]},
 			{"who": "紫衣小人", "x": 829, "y": 969, "r": 30, "act": "bob", "say": "", "idle": "breathe", "sprite": "res://assets/sprites/street/person_purple.png", "srect": [780.8, 920.8, 876.7, 1016.7]},
 			{"who": "黑白猫", "x": 1186, "y": 1036, "r": 30, "act": "yawn", "say": "喵～", "idle": "breathe", "sprite": "res://assets/sprites/street/cat_bw.png", "srect": [1137.5, 987.5, 1233.3, 1066.7]},
-			{"who": "路灯", "x": 1181, "y": 823, "r": 36, "act": "glow", "say": "", "idle": "breathe", "sprite": "res://assets/sprites/street/lamp.png", "srect": [1145.8, 790.0, 1215.8, 1060.0]},
+			{"who": "路灯", "x": 1181, "y": 823, "r": 36, "act": "glow", "say": "", "idle": "still", "still": true, "sprite": "res://assets/sprites/street/lamp.png", "srect": [1145.8, 790.0, 1215.8, 1060.0]},
 			{"who": "粉花丛", "x": 292, "y": 933, "r": 40, "act": "sway", "say": "", "idle": "sway", "sprite": "res://assets/sprites/street/flowers_pink.png", "srect": [226.7, 876.7, 356.7, 988.3]},
 			{"who": "灰猫（右上）", "x": 1019, "y": 330, "r": 28, "act": "yawn", "say": "喵～", "idle": "breathe", "sprite": "res://assets/sprites/street/cat_grey2.png", "srect": [970.8, 281.7, 1066.7, 377.5]},
 		],
@@ -76,8 +76,8 @@ const DATA: Array = [
 		],
 		"reactives": [
 			{"who": "向日葵", "x": 290, "y": 816, "r": 46, "act": "sway", "say": ""},
-			{"who": "布料堆", "x": 875, "y": 790, "r": 48, "act": "flutter", "say": ""},
-			{"who": "灯笼", "x": 267, "y": 196, "r": 40, "act": "glow", "say": ""},
+			{"who": "布料堆", "x": 875, "y": 790, "r": 48, "act": "flutter", "say": "", "still": true},
+			{"who": "灯笼", "x": 267, "y": 196, "r": 40, "act": "glow", "say": "", "still": true},
 			{"who": "蓝花", "x": 1467, "y": 825, "r": 36, "act": "sway", "say": ""},
 		],
 		"inhabitants": [
@@ -120,7 +120,7 @@ const DATA: Array = [
 			{"who": "白兔子", "x": 222, "y": 353, "r": 40, "act": "hop", "say": "蹦"},
 			{"who": "橘猫", "x": 1333, "y": 810, "r": 46, "act": "yawn", "say": "哈～"},
 			{"who": "小鸟", "x": 1181, "y": 645, "r": 36, "act": "chirp", "say": "啾啾♪"},
-			{"who": "石灯", "x": 1261, "y": 538, "r": 42, "act": "glow", "say": ""},
+			{"who": "石灯", "x": 1261, "y": 538, "r": 42, "act": "glow", "say": "", "still": true},
 		],
 		"inhabitants": [
 			{"who": "小鸟", "x": 891, "y": 75, "r": 28, "act": "chirp", "say": "啾啾♪", "idle": "breathe"},
@@ -130,7 +130,7 @@ const DATA: Array = [
 			{"who": "小鸟", "x": 949, "y": 740, "r": 28, "act": "chirp", "say": "", "idle": "breathe"},
 			{"who": "粉花丛", "x": 250, "y": 83, "r": 40, "act": "sway", "say": "", "idle": "sway"},
 			{"who": "蓝花丛", "x": 1458, "y": 250, "r": 40, "act": "sway", "say": "", "idle": "sway"},
-			{"who": "石灯", "x": 325, "y": 550, "r": 36, "act": "glow", "say": "", "idle": "breathe"},
+			{"who": "石灯", "x": 325, "y": 550, "r": 36, "act": "glow", "say": "", "idle": "still", "still": true},
 		],
 		"intro": [
 			["店长猫 · 阿橘", "园丁刺猬奶奶的花园办派对，10 样东西被草丛和花丛藏起来了。"],
@@ -173,7 +173,7 @@ const DATA: Array = [
 			{"who": "竹林", "x": 1542, "y": 317, "r": 48, "act": "sway", "say": "", "idle": "sway"},
 			{"who": "粉花丛", "x": 583, "y": 333, "r": 40, "act": "sway", "say": "", "idle": "sway"},
 			{"who": "紫花丛", "x": 333, "y": 583, "r": 40, "act": "sway", "say": "", "idle": "sway"},
-			{"who": "石灯", "x": 1458, "y": 817, "r": 36, "act": "glow", "say": "", "idle": "breathe"},
+			{"who": "石灯", "x": 1458, "y": 817, "r": 36, "act": "glow", "say": "", "idle": "still", "still": true},
 		],
 		"intro": [
 			["店长猫 · 阿橘", "秋游的客人把东西丢了满公园，连松鼠都帮忙藏了几件！"],

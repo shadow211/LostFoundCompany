@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## 端到端输入测试：用真实输入事件（Viewport.push_input）验证
-## 对话点击推进、悬停动画、滚轮缩放、拖动平移、点击收集、点空计失误。
+## 对话点击推进、悬停动画、滚轮缩放、拖动平移、点击收集、点空不计失误。
 ## 必须在带窗口的环境跑：xvfb-run godot --path . -s tests/input_test.gd
 
 var failures: Array[String] = []
@@ -95,7 +95,7 @@ func run() -> void:
 	await push_hover(s0)
 	check(not game.hovered.is_empty() and game.hovered["is_target"], "hover target sets hovered")
 	check(game.targets[0]["patch"].visible, "hover target shows patch")
-	check(game.found_count == 0 and game.mistakes == 0, "hover does not collect or count a mistake")
+	check(game.found_count == 0, "hover does not collect")
 	check(game._hover_ring != null, "hover target shows pulsing ring")
 	await wait_sec(0.25)
 	check(absf(game.targets[0]["patch"].scale.x - base_scale.x) < 0.02, "hover does NOT scale the object (%.3f, stays %.3f)" % [base_scale.x, game.targets[0]["patch"].scale.x])
@@ -112,7 +112,7 @@ func run() -> void:
 	await push_hover(sr0)
 	check(not game.hovered.is_empty() and not game.hovered["is_target"], "hover reactive sets hovered")
 	check(game.reactives[0]["patch"].visible, "hover reactive shows patch")
-	check(game.found_count == 0 and game.mistakes == 0, "hover reactive: no collect, no mistake")
+	check(game.found_count == 0, "hover reactive: no collect")
 	# 拖动时悬停清除（按住左键移动是平移，不是悬停）
 	await push_btn(sr0, MOUSE_BUTTON_LEFT, true)
 	await push_motion(Vector2(320, 400), Vector2(-80, 0))
@@ -150,13 +150,12 @@ func run() -> void:
 	await wait_sec(1.1)
 	check(game.rows[0]["check"].visible, "found target shows check after green ring + bubble")
 	# 5b) 真实点击彩蛋猫 -> 打哈欠本色动作，不计分
-	var m_before: int = game.mistakes
 	var f_before: int = game.found_count
 	var cat_pos: Vector2 = game.reactives[0]["pos"]
 	var cat_spos: Vector2 = game.VIEW_RECT.position + (cat_pos - game.cam) * game.zoom
 	await push_btn(cat_spos, MOUSE_BUTTON_LEFT, true)
 	await push_btn(cat_spos, MOUSE_BUTTON_LEFT, false)
-	check(game.found_count == f_before and game.mistakes == m_before, "click cat reactive: no collect, no mistake")
+	check(game.found_count == f_before, "click cat reactive: no collect")
 	check(game.reactives[0]["who"] == "灰猫" and game.reactives[0]["act"] == "yawn", "cat reactive is a yawning cat, not a generic scale")
 	# 5c) 真实点击住户小人 -> 原地蹦两下，不计分；住户补丁开场就显示
 	check(game.inhabitants[0]["patch"].visible, "inhabitant patch visible from start (idle breathing)")
@@ -164,17 +163,34 @@ func run() -> void:
 	var ih_spos: Vector2 = game.VIEW_RECT.position + (ih_pos - game.cam) * game.zoom
 	await push_btn(ih_spos, MOUSE_BUTTON_LEFT, true)
 	await push_btn(ih_spos, MOUSE_BUTTON_LEFT, false)
-	check(game.found_count == f_before and game.mistakes == m_before, "click inhabitant: no collect, no mistake")
+	check(game.found_count == f_before, "click inhabitant: no collect")
 	check(game.inhabitants[0]["who"] == "粉衣小人" and game.inhabitants[0]["act"] == "bob", "inhabitant is a strolling person, not a generic scale")
 	await wait_sec(0.6)
 	check(game.inhabitants[0]["patch"].visible, "inhabitant patch stays visible after its act")
+	# 5d) 真实点击路灯（静物）-> 只亮一下，不位移、不缩放、不旋转
+	var lamp: Dictionary = {}
+	for h in game.inhabitants:
+		if String(h.get("who", "")) == "路灯":
+			lamp = h
+			break
+	check(not lamp.is_empty() and String(lamp.get("idle", "")) == "still", "lamp is a still object (idle still)")
+	var lamp_pos: Vector2 = lamp["pos"]
+	var lamp_spos: Vector2 = game.VIEW_RECT.position + (lamp_pos - game.cam) * game.zoom
+	var lp0: Vector2 = lamp["patch"].position
+	var ls0: Vector2 = lamp["patch"].scale
+	var lr0: float = lamp["patch"].rotation
+	await push_btn(lamp_spos, MOUSE_BUTTON_LEFT, true)
+	await push_btn(lamp_spos, MOUSE_BUTTON_LEFT, false)
+	check(game.found_count == f_before, "click lamp: no collect")
+	check(lamp["patch"].position == lp0 and lamp["patch"].scale == ls0 and lamp["patch"].rotation == lr0, "lamp does not move on real click")
 
-	# 6) 真实点击空地 -> 失误+1
-	var m0: int = game.mistakes
+	# 6) 真实点击空地 -> 不计失误、不收集
+	var f0: int = game.found_count
 	var ep := empty_screen_point(game)
 	await push_btn(ep, MOUSE_BUTTON_LEFT, true)
 	await push_btn(ep, MOUSE_BUTTON_LEFT, false)
-	check(game.mistakes == m0 + 1, "real click on empty counts a mistake")
+	check(game.found_count == f0, "real click on empty does not collect")
+	check(not ("失误" in game.progress_label.text), "HUD shows no mistake count after empty click")
 
 	if failures.is_empty():
 		print("== INPUT TEST PASSED ==")

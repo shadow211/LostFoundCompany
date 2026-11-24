@@ -2,7 +2,7 @@ extends Control
 
 ## 关卡玩法 v3：场景为手绘风插图（整幅大图），目标物品以热点标定。
 ## 大场景可拖动平移 + 滚轮缩放；开场/结尾委托对话；点中热点收集
-## （留下绿圈标记），点空计失误；提示时相机自动移向目标；评 1-3 星。
+## （留下绿圈标记），点空不计失误；提示时相机自动移向目标；评 1-3 星。
 
 const VIEW_RECT := Rect2(16, 80, 968, 704)
 const WORLD_SIZE := Vector2(1600, 1067)
@@ -16,7 +16,6 @@ var targets: Array = []  # {kind, color, pos: Vector2, r: float, found: bool}
 var total_targets: int = 0
 var targets_left: int = 0
 var found_count: int = 0
-var mistakes: int = 0
 var hints_left: int = 0
 var hints_used: int = 0
 var elapsed: float = 0.0
@@ -61,7 +60,6 @@ var win_stars_label: Label
 var win_detail: Label
 var win_outro: Label
 var next_button: Button
-var miss_marker: Label
 
 func _ready() -> void:
 	_apply_font()
@@ -199,13 +197,7 @@ func _build_ui() -> void:
 	list_box = VBoxContainer.new()
 	list_box.add_theme_constant_override("separation", 6)
 	lv.add_child(list_box)
-	lv.add_child(_mk_label("拖动平移 · 滚轮缩放\n物品就藏在画里，\n点空了计失误。", 15, Color(0.45, 0.42, 0.38)))
-
-	miss_marker = _mk_label("✕", 34, Color(0.85, 0.2, 0.15))
-	miss_marker.visible = false
-	miss_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	miss_marker.z_index = 4096
-	add_child(miss_marker)
+	lv.add_child(_mk_label("拖动平移 · 滚轮缩放\n物品就藏在画里，\n点空了也不扣分。", 15, Color(0.45, 0.42, 0.38)))
 
 	_build_dialogue()
 	_build_win_panel()
@@ -359,6 +351,7 @@ func _start_level() -> void:
 		var rentry := {
 			"who": String(rd.get("who", "")), "act": String(rd.get("act", "sway")),
 			"say": String(rd.get("say", "")),
+			"still": bool(rd.get("still", false)),
 			"pos": Vector2(float(rd["x"]), float(rd["y"])),
 			"r": float(rd["r"]),
 		}
@@ -366,11 +359,13 @@ func _start_level() -> void:
 		reactives.append(rentry)
 	# 住户：场景里所有人/动物/花草。补丁从开场就一直显示，待机呼吸不停；
 	# 每隔几秒自己动一下，点中做本色动作、不计分、不收集。
+	# 静物（路灯/石灯）除外：没有待机、不会自己动、点中只轻轻亮一下。
 	for id in level.get("inhabitants", []):
 		var ientry := {
 			"who": String(id.get("who", "")), "act": String(id.get("act", "bob")),
 			"say": String(id.get("say", "")),
 			"idle": String(id.get("idle", "breathe")),
+			"still": bool(id.get("still", false)),
 			"pos": Vector2(float(id["x"]), float(id["y"])),
 			"r": float(id["r"]),
 		}
@@ -475,6 +470,11 @@ func _tween_act(sp: Sprite2D, kind: String) -> Tween:
 			tw.parallel().tween_property(sp, "scale", base_scale * 1.06, 0.18)
 			tw.tween_property(sp, "modulate", Color.WHITE, 0.35)
 			tw.parallel().tween_property(sp, "scale", base_scale, 0.3)
+		"still":
+			# 静物（路灯/石灯/灯笼/浇水壶/布料堆）点中：只轻轻亮一下，
+			# 不位移、不缩放、不旋转——静物不该动
+			tw.tween_property(sp, "modulate", Color(1.25, 1.18, 1.05), 0.15)
+			tw.tween_property(sp, "modulate", Color.WHITE, 0.3)
 		"pour":
 			# 浇水壶：倾斜倒水，再回正
 			tw.tween_property(sp, "rotation", -0.28, 0.18)
@@ -668,9 +668,7 @@ func _on_scene_input(event: InputEvent) -> void:
 				_dragging = false
 			else:
 				if not _dragging:
-					var res := handle_click(screen_to_world(event.position + VIEW_RECT.position))
-					if res == "empty":
-						_show_miss(event.position + VIEW_RECT.position)
+					handle_click(screen_to_world(event.position + VIEW_RECT.position))
 				_dragging = false
 	elif event is InputEventMouseMotion:
 		if event.button_mask & MOUSE_BUTTON_MASK_LEFT:
@@ -685,7 +683,8 @@ func _on_scene_input(event: InputEvent) -> void:
 			_update_hover(screen_to_world(_last_mouse_screen))
 
 ## 返回 "found" / "reactive" / "inhabitant" / "empty"，供输入处理与测试共用。
-## 判定顺序：目标 > 彩蛋 > 住户 > 空地。
+## 判定顺序：目标 > 彩蛋 > 住户 > 空地。点空不计失误，只留一个白色涟漪
+## 当作“点到了这里”的反馈，不扣分、不影响星级。
 func handle_click(pos: Vector2) -> String:
 	if not playing:
 		return "empty"
@@ -702,10 +701,8 @@ func handle_click(pos: Vector2) -> String:
 		if pos.distance_to(h["pos"]) <= float(h["r"]):
 			_play_inhabitant(h)
 			return "inhabitant"
-	mistakes += 1
-	_spawn_ripple(pos, Color(0.95, 0.45, 0.4, 0.8), 34.0, 0.3)
-	GameState.play_sfx("error")
-	_update_hud()
+	_spawn_ripple(pos, Color(1, 1, 1, 0.6), 30.0, 0.3)
+	GameState.play_sfx("click")
 	return "empty"
 
 func _spawn_ripple(pos: Vector2, col: Color, max_r: float, dur: float) -> void:
@@ -759,13 +756,6 @@ func _finish_found(i: int) -> void:
 	if targets_left <= 0:
 		_win()
 
-func _show_miss(screen_pos: Vector2) -> void:
-	miss_marker.position = screen_pos - Vector2(14, 22)
-	miss_marker.visible = true
-	var tw := create_tween()
-	tw.tween_interval(0.4)
-	tw.tween_callback(func() -> void: miss_marker.visible = false)
-
 func _on_hint() -> void:
 	if not playing or dialogue_active or hints_left <= 0:
 		return
@@ -807,9 +797,11 @@ func debug_show_hotspots() -> void:
 		fx_root.add_child(ring3)
 
 ## 彩蛋点中：只做它自己的动作（猫打哈欠、鸟叫、花摇……），不画圈、
-## 不提示 "找到了！"、不计分、不收集。
+## 不提示 "找到了！"、不计分、不收集。静物（浇水壶/灯笼/布料堆/石灯）
+## 只轻轻亮一下，不位移、不缩放、不旋转。
 func _play_reactive(entry: Dictionary) -> void:
-	_animate_patch(entry["patch"], String(entry["act"]))
+	var kind := "still" if bool(entry.get("still", false)) else String(entry["act"])
+	_animate_patch(entry["patch"], kind)
 	var say := String(entry.get("say", ""))
 	if not say.is_empty():
 		var ft := FloatText.new()
@@ -843,7 +835,8 @@ func _play_inhabitant(entry: Dictionary) -> void:
 	patch.set_meta("animating", true)
 	var base_scale: Vector2 = patch.get_meta("base_scale", patch.scale)
 	var base_pos: Vector2 = patch.get_meta("base_pos", patch.position)
-	var tw := _tween_act(patch, String(entry["act"]))
+	var kind := "still" if bool(entry.get("still", false)) else String(entry["act"])
+	var tw := _tween_act(patch, kind)
 	tw.tween_callback(func() -> void:
 		patch.rotation = 0.0
 		patch.position = base_pos
@@ -872,20 +865,23 @@ func _process(delta: float) -> void:
 		timer_label.text = _fmt_time(elapsed)
 	# 住户待机：每帧按正弦呼吸/轻摆；对话和结算时也动，场景一直是活的。
 	# 点中动画或悬停时不动手，等动作播完再接上。
+	# 静物（路灯/石灯）没有待机、也不会自己动。
 	_idle_time += delta
 	for h in inhabitants:
 		var patch: Sprite2D = h["patch"]
 		if patch.get_meta("animating", false) or patch.get_meta("hovering", false):
 			continue
-		var base_scale: Vector2 = patch.get_meta("base_scale", patch.scale)
-		var ph: float = float(h["phase"])
-		var sp: float = float(h["speed"])
-		if String(h["idle"]) == "sway":
-			patch.rotation = 0.03 * sin(_idle_time * sp * 0.6 + ph)
-		else:
-			var s := 1.0 + 0.035 * sin(_idle_time * sp + ph)
-			patch.scale = Vector2(base_scale.x, base_scale.y * s)
-		if playing and not dialogue_active:
+		var is_still := bool(h.get("still", false))
+		if not is_still:
+			var base_scale: Vector2 = patch.get_meta("base_scale", patch.scale)
+			var ph: float = float(h["phase"])
+			var sp: float = float(h["speed"])
+			if String(h["idle"]) == "sway":
+				patch.rotation = 0.03 * sin(_idle_time * sp * 0.6 + ph)
+			elif String(h["idle"]) == "breathe":
+				var s := 1.0 + 0.035 * sin(_idle_time * sp + ph)
+				patch.scale = Vector2(base_scale.x, base_scale.y * s)
+		if playing and not dialogue_active and not is_still:
 			h["next_act"] = float(h["next_act"]) - delta
 			if float(h["next_act"]) <= 0.0:
 				h["next_act"] = randf_range(7.0, 14.0)
@@ -896,7 +892,7 @@ func _fmt_time(sec: float) -> String:
 	return "%02d:%02d" % [s / 60, s % 60]
 
 func _update_hud() -> void:
-	progress_label.text = "已找到 %d / %d · 失误 %d" % [found_count, total_targets, mistakes]
+	progress_label.text = "已找到 %d / %d" % [found_count, total_targets]
 	hint_button.text = "提示（剩 %d）" % hints_left
 	hint_button.disabled = hints_left <= 0 or not playing or dialogue_active
 
@@ -907,14 +903,12 @@ func _win() -> void:
 	var star_count := 3
 	if hints_used > 0:
 		star_count -= 1
-	if mistakes > 5:
-		star_count -= 1
 	if elapsed > float(level["par_time"]) * 1.5:
 		star_count -= 1
 	star_count = maxi(star_count, 1)
 	GameState.set_stars(level_index, star_count)
 	win_stars_label.text = "★".repeat(star_count) + "☆".repeat(3 - star_count)
-	win_detail.text = "用时 %s · 失误 %d 次 · 提示 %d 次" % [_fmt_time(elapsed), mistakes, hints_used]
+	win_detail.text = "用时 %s · 提示 %d 次" % [_fmt_time(elapsed), hints_used]
 	var outro_text := ""
 	for line in level["outro"]:
 		outro_text += line[0] + "：" + line[1] + "\n"
